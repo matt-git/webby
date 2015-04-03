@@ -1,7 +1,6 @@
 # webby
 Python Crawler and HTML Parser Library
-- 
-- 
+
 - With webby you can quickly navigate the web
 - pass html source code into a webby.Parser object 
 - and use XPATHs to recieve web data. 
