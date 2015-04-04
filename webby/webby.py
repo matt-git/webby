@@ -23,8 +23,8 @@ except ImportError as ie:
 
 
 
-__version__ = '2.1.3'
-__all__ = ['Crawler', 'Parser']
+__version__ = '1.1.0'
+__all__ = ['Crawler', 'Parser', 'Feed']
 
 HTML = 0
 	
@@ -104,15 +104,6 @@ class Crawler(object):
 
 	def get_hyperlinks(self):
 		return self.soup.xpath('//a/@href')
-		"""for beef in self.soup.find_all('a'):
-			if beef.has_attr('href'):
-				links.add(beef['href'])
-		return list(links)"""
-		#test of 100 runs recieved :: 0.0452472575527
-		#test of new (set) method is :: 0.0356067475092
-		#test of initially making links a set object :: 0.0334417044761
-		#I dont belive that order matters at all.
-		#New test yields 0.01027909 seconds for 100
 	
 	def get_full_links(self):
 		relist = []
@@ -175,40 +166,10 @@ class Crawler(object):
 			print "Could not connect to given URL"
 			return None
 		
-	def	find_text(self, phrase, similarity=0.3, expand=False, indexrange=3):
-		"""Pulls information similar to keyword. * finds all"""
-		#Default 0.3 similarity, refers to percent similar
-		
-		if phrase == "*": return self.soup.text
-		
-		
-		
-		split = str(self._remove_non_ascii(self.soup.text)).split('\n')
-		matches = difflib.get_close_matches(phrase, split, cutoff=similarity)
-		#print "%s Matches Found"%len(matches)
-		for i in split:
-			if phrase in i:
-				matches.append(i)
-				
-		print "%s Matches Found"%len(matches)
-		if expand:
-			if len(matches) > 0:
-				index = split.index(matches[0])
-				if ((index - indexrange) > 0) and (index+indexrange < len(split) - 1):
-					for i in range(index-indexrange, index+indexrange):
-						matches.append(split[i])
-					return matches
-		else:
-			return matches
-			
-	def find(self, tag):
-		"""finds info by tag"""
-		return self.soup.find_all(tag)
 		
 	def crawl(self, length=10, directory=None):
 		"""finds all hyperlinks and crawls and scrapes"""
 		#Surely this can be cleaned up a bit more. not sure, it may be efficient
-		#Keyword argument allows you to scrape from within crawl function
 		count = 0
 		for links in self.hrefs:
 			if links in self.storedlinks: continue
@@ -239,7 +200,9 @@ class Crawler(object):
 					title = self.soup.title.text.translate(CLEANUP)
 
 					self.export(self._remove_non_ascii("%s\\%s"%(directory, title)))
-		
+	
+	def ship(self):
+		"""Returns feed"""
 				
 	def html(self):
 		print self.soup.prettify()
@@ -261,6 +224,20 @@ class Crawler(object):
 		"""exits module cleanly"""
 		sys.exit(1)
 		
+		
+class Feed(object):
+	def __init__(self, sourcecode):
+		self.sourcelist = [sourcecode]
+		self.source = sourcecode
+		
+	def eat(self, sourcecode):
+		self.sourcelist.append(sourcecode)
+		return None
+		
+	def get(self):
+		return self.sourcelist
+		
+
 class Parser(object):
 	def __init__(self, text=None):
 		self._rawtext = text
