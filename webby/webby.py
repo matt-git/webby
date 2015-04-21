@@ -1,85 +1,3 @@
-"""
-
-Dynamic Data - Live results when you need them.
-
-
-This is the next release of webscraper module for Python. No
-	longer titled webscraper.py. Changed module title to webby.py
-	
-	
-	Version: 1.2.0
-	
-	Creation Date: 10/27/2014
-	
-	Development of Current Version: 04/08/2015
-	
-	Developed By: Matthew McCullough
-
-	
-	Packaging Detail:
-		
-		Make sure that this package includes the most current versions of:
-			
-			lxml
-			libslt
-			libxml2
-			urllib2
-			
-			
-			
-	Change Log:
-	
-		1.0.3
-		1) Analyzer Object was changed to a Parser Object, as the title is easier and more fitting
-		2) Replaced Selenium with built in urllib2 python library
-		3) Increased speed within many of the algorithms
-			
-			
-		1.1.3
-		1) Updated to LXML instead of BS4
-		   -as a result, scrape_directory can scrape files 25x faster than before
-		   -speeding up all parts of the algorithms 25 fold!!!
-		   
-Classes:
-	Crawler ->
-	
-		Attributes:
-			source -> attribute that reveals the html source code of the site
-		
-		Methods:
-			get_url(): Returns string of current URL
-			get_hyperlinks(): Returns list of hyperlinks from given HTML
-			get_text(): obtains text on the webpage
-			info(): Gives urllib info such as cookies, expirations, date, etc
-			search(keywords, url=root): From root or given url, append keyword searchs to access web data. (Web search)
-			open(url=root): Opens given url, if none given it connects to root.
-			crawl(length=10, directory=None): Crawls web length times. Never repeats urls and exports HTML data to memory.  
-			html(): Prints readable HTML text to user.
-			export(): Writes HTML to text file.
-	
-	Parser ->
-	
-		Attributes:
-			_text:
-			
-		Get Methods:
-		
-		Set Methods:
-			set_text(): Sets the current text for analysis
-			
-		Methods:
-			structure(): Finds structural pattern in data
-			blockify():
-			
-	Visualizer ->
-		
-		Attributes:
-			Tag Cloud: Organize the data by tag, whats the most prevalent tag information
-			
-"""
-
-#Folksonomy: A user-generated system of classifying and organizing online content 
-#            into different categories by the use of metadata such as electronic tags
 
 import os
 import sys
@@ -103,19 +21,9 @@ except ImportError as ie:
 
 
 
-__version__ = '1.2.0'
+__version__ = '1.2.1'
 __all__ = ['Crawler', 'Parser', 'Visualizer']
 
-HTML = 0
-	
-ID = 'id'
-XPATH = 'xpath'
-LINK_TEXT = 'link text'
-PARTIAL_LINK_TEXT = 'partial link text'
-NAME = 'name'
-TAG_NAME = 'tag name'
-CLASS_NAME = 'class name'
-CSS_SELECTOR = 'css selector'
 CLEANUP = dict((ord(char), None) for char in "/\".,;:><?+'!@#$%^&*()-=|][{}`~\\\n\r")
 TIDY = dict((ord(char), None) for char in "\n\r\t")
 BADTAGS = map(lambda x: x.upper(), Set(['all', 'just', 'being', 'over', 'both', 'through', 'yourselves', 'its', 'before', 'herself', 'had', 'should', 
@@ -144,9 +52,7 @@ class Crawler(object):
 		self.source = self._remove_non_ascii("".join(self.current.readlines()))
 		self.soup = html.fromstring(self.source)
 		self.storedlinks=Set([self.root])
-		
-		self.__active = False
-		self.__structured = False
+
 		self._log = []
 
 		self.hrefs = self.get_hyperlinks()
@@ -168,20 +74,25 @@ class Crawler(object):
 		
 		
 	def _remove_non_ascii(self, string):
+		"""Returns only ASCII string"""
 		return "".join(filter(lambda x: ord(x)<128, string))
 
 		
 	def info(self):
+		"""Displays Socket Data"""
 		return self.current.info().headers
 		
 	def get_url(self):
+		"""Returns current URL"""
 		return self.current.geturl()
 
 	def get_hyperlinks(self):
+		"""Returns list of relative links"""
 		return self.soup.xpath('//a/@href')
 
 	
 	def get_full_links(self):
+		"""Returns absolute path links"""
 		relist = []
 		for links in self.soup.xpath('//a/@href'):
 			if self.root not in links:
@@ -208,6 +119,7 @@ class Crawler(object):
 	
 		
 	def open(self, url=None):
+		"""Opens up webpage into Crawler"""
 	
 		try:
 			if url is not None:
@@ -255,8 +167,7 @@ class Crawler(object):
 		
 	def crawl(self, length=10, directory=None):
 		"""finds all hyperlinks and crawls and scrapes"""
-		#Surely this can be cleaned up a bit more. not sure, it may be efficient
-		#Keyword argument allows you to scrape from within crawl function
+
 		count = 0
 		for links in self.hrefs:
 			if links in self.storedlinks: continue
@@ -306,6 +217,7 @@ class Crawler(object):
 		
 class Parser(object):
 	def __init__(self, text=None):
+		"""Plop crawler source-code into here"""
 		self._rawtext = text
 		self._blockset = Set([])
 		self._structured = False
@@ -359,7 +271,6 @@ class Parser(object):
 		allwords = filter(lambda x: x.upper() not in BADTAGS, allwords)
 		wordcount = collections.Counter([word.upper() for word in allwords])
 
-		#percent = int(len(wordcount) * 0.25)
 		try:
 			return wordcount.most_common()[:amount]
 		except IndexError:
@@ -452,6 +363,7 @@ class Parser(object):
 		return ls
 
 	def scrape_directory(self, xpath, directory, name=None):
+		"""Pulls data from all files in a directory"""
 		if name is None:
 			name = hash(xpath)
 			
@@ -468,6 +380,7 @@ class Parser(object):
 		
 		
 	def scrape(self, xpath, name=None, element=False):
+		"""Pulls and stores HTML Elements by XPATH"""
 		if name is None:
 			name = hash(xpath)
 			
@@ -496,6 +409,7 @@ class Parser(object):
 				
 		
 	def scrape_all(self, tag, attribute=None, reg=False, filename=None):
+		"""Finds all instances of scrape"""
 		if not isinstance(tag, list):
 			raise TypeError
 			
@@ -541,7 +455,7 @@ class Parser(object):
 			#Now that the workbook is all ready to go, we can organize our data and write out
 			
 			def output(lst, row):
-				#Helper output function for writing out to excel files
+				"""Helper output function for writing out to excel files"""
 				for i in range(0, len(lst)):
 				#	try:
 					worksheet.write(row+1, i, lst[i], datastyle)
@@ -613,6 +527,7 @@ class Parser(object):
 				
 			
 	def blockscrape(self, xpath, name, attr=None, condition=lambda x: x, linetag=None):
+		"""Great for scraping tables or multi-valued xpaths"""
 		
 		workinglist = self.soup.xpath(xpath)
 		self.titles.add(name)
@@ -652,47 +567,16 @@ class Parser(object):
 	
 	
 	def datawand(self):
+		"""Discovers and saves useful web data"""
 		links =  filter(lambda x: "%s%s"%x,self.soup.xpath("//a/@href"))
 		tabletitles = [i for i in self.soup.xpath("//th")]
 		tablerows = [i for i in self.soup.xpath("//td")]
-		
-		
-		#length = max(map(lambda x: len(x), links), 
-				#map(lambda x: len(x), tabletitles),
-				#map(lambda x: len(x), tablerows))
-		
+
 		
 		[self.add(hash(self.code+units), subkey="Links", value=links[units]) for units in range(0, len(links))]
 		[self.add(hash(self.code+units), subkey="Titles", value=tabletitles[units]) for units in range(0, len(tabletitles))]
 		[self.add(hash(self.code+units), subkey="Rows", value=tablerows[units]) for units in range(0, len(tablerows))]
-			
-	def blockscrape2(self, xpath, attributes, columnname, nextpath=None):
-		"""Path to Product, attr to pull, name for export"""
-		#Nextpath is used to do another xpath within each result element.
-		results = self.soup.xpath(xpath)
-		amount = len(results)
-		
-		workingcode = self.code
-		
-		for ute in attributes:
-			for i in map(lambda x: x.attrib[ute], results):
-				
-				self.add(workingcode, columnname, i)
-				workingcode += 1
-				
-			workingcode = self.code
-			if nextpath is not None:
-				for i in map(lambda x: x.xpath(nextpath)[self.code-workingcode].text, results):
-					#THIS IS SO WRONG....
-					self.add(workingcode, nextpath, i)
-					workingcode += 1
-				
-			
-			
-			#self.add(self.code+hash(ute), subkey=columnname, filter(lambda x: x.attrib[ute])
-			
-		
-		
+
 	def load(self, filename):
 		"""From current directory or given"""
 		try:
@@ -742,6 +626,7 @@ class Visualizer(object):
 		return True
 	
 	def export_html(self, directory):
+		"""Saves HTML file to directory"""
 		try:
 			directory = "%s.html"%directory
 			
@@ -755,21 +640,3 @@ class Visualizer(object):
 	
 	def style_table(self, html):
 		"""CSS code to style table"""
-		
-
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	

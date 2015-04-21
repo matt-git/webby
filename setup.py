@@ -22,7 +22,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='1.1.1',
+    version='1.2.0',
 
     description='Web Crawling and HTML Parsing Library',
     long_description=long_description,
@@ -59,7 +59,7 @@ setup(
     ],
 
     # What does your project relate to?
-    keywords='webby crawling data mining',
+    keywords='Web crawling data mining',
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
