@@ -1,90 +1,9 @@
-"""
-
-Dynamic Data - Live results when you need them.
-
-
-This is the next release of webscraper module for Python. No
-	longer titled webscraper.py. Changed module title to webby.py
-	
-	
-	Version: 1.2.0
-	
-	Creation Date: 10/27/2014
-	
-	Development of Current Version: 04/08/2015
-	
-	Developed By: Matthew McCullough
-
-	
-	Packaging Detail:
-		
-		Make sure that this package includes the most current versions of:
-			
-			lxml
-			libslt
-			libxml2
-			urllib2
-			
-			
-			
-	Change Log:
-	
-		1.0.3
-		1) Analyzer Object was changed to a Parser Object, as the title is easier and more fitting
-		2) Replaced Selenium with built in urllib2 python library
-		3) Increased speed within many of the algorithms
-			
-			
-		1.1.3
-		1) Updated to LXML instead of BS4
-		   -as a result, scrape_directory can scrape files 25x faster than before
-		   -speeding up all parts of the algorithms 25 fold!!!
-		   
-Classes:
-	Crawler ->
-	
-		Attributes:
-			source -> attribute that reveals the html source code of the site
-		
-		Methods:
-			get_url(): Returns string of current URL
-			get_hyperlinks(): Returns list of hyperlinks from given HTML
-			get_text(): obtains text on the webpage
-			info(): Gives urllib info such as cookies, expirations, date, etc
-			search(keywords, url=root): From root or given url, append keyword searchs to access web data. (Web search)
-			open(url=root): Opens given url, if none given it connects to root.
-			crawl(length=10, directory=None): Crawls web length times. Never repeats urls and exports HTML data to memory.  
-			html(): Prints readable HTML text to user.
-			export(): Writes HTML to text file.
-	
-	Parser ->
-	
-		Attributes:
-			_text:
-			
-		Get Methods:
-		
-		Set Methods:
-			set_text(): Sets the current text for analysis
-			
-		Methods:
-			structure(): Finds structural pattern in data
-			blockify():
-			
-	Visualizer ->
-		
-		Attributes:
-			Tag Cloud: Organize the data by tag, whats the most prevalent tag information
-			
-"""
-
 #Folksonomy: A user-generated system of classifying and organizing online content 
 #            into different categories by the use of metadata such as electronic tags
 
 import os
 import sys
 import time
-import datetime
 import collections
 import difflib
 import re
@@ -94,6 +13,7 @@ from sets import Set
 
 try:
 
+	from bs4 import BeautifulSoup, SoupStrainer
 	from lxml import html
 	from lxml.html.clean import clean_html
 	
@@ -103,8 +23,8 @@ except ImportError as ie:
 
 
 
-__version__ = '1.2.0'
-__all__ = ['Crawler', 'Parser', 'Visualizer']
+__version__ = '2.1.3'
+__all__ = ['Crawler', 'Parser']
 
 HTML = 0
 	
@@ -141,13 +61,16 @@ class Crawler(object):
 		self.root = root
 		self.directory = os.getcwd()
 		self.current = ulib.urlopen(self.root)
-		self.source = self._remove_non_ascii("".join(self.current.readlines()))
+		self.source = "".join(self.current.readlines())
 		self.soup = html.fromstring(self.source)
 		self.storedlinks=Set([self.root])
+		#self.proxy = ulib.ProxyHandler({'http': '5.153.101.255'})
+		#opener = ulib.build_opener(self.proxy)
+		#ulib.install_opener(opener)
 		
 		self.__active = False
 		self.__structured = False
-		self._log = []
+		self.__log = {}
 
 		self.hrefs = self.get_hyperlinks()
 		#Starts Crawling from root. Root is crucial to the whole thing
@@ -168,8 +91,10 @@ class Crawler(object):
 		
 		
 	def _remove_non_ascii(self, string):
-		return "".join(filter(lambda x: ord(x)<128, string))
-
+		returnstring = "".join(filter(lambda x: ord(x)<128, string))
+		if string != returnstring:
+			return returnstring
+		else: return returnstring
 		
 	def info(self):
 		return self.current.info().headers
@@ -179,7 +104,15 @@ class Crawler(object):
 
 	def get_hyperlinks(self):
 		return self.soup.xpath('//a/@href')
-
+		"""for beef in self.soup.find_all('a'):
+			if beef.has_attr('href'):
+				links.add(beef['href'])
+		return list(links)"""
+		#test of 100 runs recieved :: 0.0452472575527
+		#test of new (set) method is :: 0.0356067475092
+		#test of initially making links a set object :: 0.0334417044761
+		#I dont belive that order matters at all.
+		#New test yields 0.01027909 seconds for 100
 	
 	def get_full_links(self):
 		relist = []
@@ -191,7 +124,7 @@ class Crawler(object):
 			
 		return relist
 		
-	def url_search(self, keywords, url=None):
+	def search(self, keywords, url=None):
 		"""Uses root website's search functionality"""
 		if url is None:
 			url = self.root
@@ -231,27 +164,46 @@ class Crawler(object):
 				
 				
 		except ValueError as ve:
-			self._log.append("%s at %s"%(ve.message, datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')))
-			
+			print ve.message
 			return None
 			
 		except ulib.HTTPError as ht:
-			self._log.append("%s at %s"%(ht.message, datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')))
+			print ht.message
 			return None
 			
 		except ulib.URLError as u:
-			self._log.append("%s at %s"%(u.message, datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')))
+			print "Could not connect to given URL"
 			return None
 		
-	def find_path(self, keyword):
-		"""Returns xpath for given keyword"""
-		text = [i.text for i in self.soup.xpath("//*")]
+	def	find_text(self, phrase, similarity=0.3, expand=False, indexrange=3):
+		"""Pulls information similar to keyword. * finds all"""
+		#Default 0.3 similarity, refers to percent similar
+		
+		if phrase == "*": return self.soup.text
 		
 		
+		
+		split = str(self._remove_non_ascii(self.soup.text)).split('\n')
+		matches = difflib.get_close_matches(phrase, split, cutoff=similarity)
+		#print "%s Matches Found"%len(matches)
+		for i in split:
+			if phrase in i:
+				matches.append(i)
+				
+		print "%s Matches Found"%len(matches)
+		if expand:
+			if len(matches) > 0:
+				index = split.index(matches[0])
+				if ((index - indexrange) > 0) and (index+indexrange < len(split) - 1):
+					for i in range(index-indexrange, index+indexrange):
+						matches.append(split[i])
+					return matches
+		else:
+			return matches
 			
-	def find(self, xpath):
-		"""Returns list Elements relevant to XPATH"""
-		return self.soup.xpath(xpath)
+	def find(self, tag):
+		"""finds info by tag"""
+		return self.soup.find_all(tag)
 		
 	def crawl(self, length=10, directory=None):
 		"""finds all hyperlinks and crawls and scrapes"""
@@ -273,21 +225,26 @@ class Crawler(object):
 		
 			if not directory:
 			
-				if self.find("//title")[0] is None: continue
+				if not self.soup.title: continue
 				
 				else:
-					title = self.find("//title")[0].translate(CLEANUP)
+					title = self.soup.title.text.translate(CLEANUP)
 
 					self.export(self._remove_non_ascii("%s\\%s"%(self.directory, title)))
 					
 			else:
-				if self.find("//title")[0] is None:
+				if not self.soup.title:
 					continue
 				else:
-					title = self.find("//title")[0].translate(CLEANUP)
+					title = self.soup.title.text.translate(CLEANUP)
 
 					self.export(self._remove_non_ascii("%s\\%s"%(directory, title)))
 		
+				
+	def html(self):
+		print self.soup.prettify()
+		return
+
 	def export(self, filename, text=None):
 		"""Saves source into file"""
 		if text == None: text = self.source
@@ -315,8 +272,6 @@ class Parser(object):
 		else: self.soup = html.fromstring(self._rawtext, 'html.parser')
 		self.code = hash(self._rawtext)
 		self._max = 0
-		self._length = 0
-		self.titles = Set([])
 			
 	def __nodupe(self, lst):
 		"""removes duplicates!"""
@@ -327,11 +282,9 @@ class Parser(object):
 		return "<Parser Object: Code = %s>"%self.code
 		
 	def __len__(self):
-		"""Returns Len of rawtext"""
 		return len(self._rawtext)
 		
 	def __dict__(self):
-		"""Returns Data Dict"""
 		return self.data
 		
 	def _text(self):
@@ -346,14 +299,12 @@ class Parser(object):
 		return " ".join(c)
 		
 	def _remove_non_ascii(self, string):
-		"""returns string stripped of non-ascii char"""
 		returnstring = "".join(filter(lambda x: ord(x)<128, string))
 		if string != returnstring:
 			return returnstring
 		else: return returnstring
 		
 	def wordcloud(self, amount=20):
-		"""Displays most common words"""
 		#Get rid of small and annoying words, leave in meaty goodness
 		allwords = re.findall(r'\w+', self._text())
 		allwords = filter(lambda x: x.upper() not in BADTAGS, allwords)
@@ -366,11 +317,10 @@ class Parser(object):
 			return wordcount.most_common()
 		
 	def add(self, key, subkey=None, value=None):
-		"""Adds data to default dict"""
 		
 		
 		if subkey is None:
-			if isinstance(key, list):
+			if instance(key, list):
 				for i in key:
 					self.add(i, value="None")
 					
@@ -385,7 +335,6 @@ class Parser(object):
 				self.data[key][subkey] = value
 			
 	def contains(self, key, subkey=None):
-		"""Checks if key is within data dict"""
 		if subkey is None: 
 			return key in self.data
 		else: 
@@ -420,7 +369,6 @@ class Parser(object):
 				return self.soup.find(re.compile(tag))
 		
 	def lookup(self, key, subkey=None):
-		"""Looks up data by hash code"""
 	
 		try:
 			if subkey is None:
@@ -432,14 +380,12 @@ class Parser(object):
 			return None
 		
 	def search(self, keyword):
-		"""finds hash code of given data"""
 		for key, value in self.data.iteritems():
 			for item in value.viewvalues():
 				if keyword in item:
 					return key
 		
 	def set_text(self, text):
-		"""Sets source to new source"""
 		self._rawtext = text
 		self.soup = html.fromstring(self._rawtext)
 		self.code = hash(self._rawtext)
@@ -612,60 +558,38 @@ class Parser(object):
 		print "CVS file exported to %s"%filename
 				
 			
-	def blockscrape(self, xpath, name, attr=None, condition=lambda x: x, linetag=None):
+	def blockscrape(self, xpath, name, attr=None):
 		
 		workinglist = self.soup.xpath(xpath)
-		self.titles.add(name)
-		
+	
 			
 		self._max = len(workinglist)
-		self._length = self._max
 
 		
 		while len(workinglist) < self._max:
-			workinglist.append("None")	
+			workinglist.append("None")
+
+			
+		
+			
 		if attr is not None:
 			for units in range(0, len(workinglist)):
 				try:
 					self.add(self.code+units, subkey=name, value=workinglist[units].attrib[attr])
-					if linetag is not None:
-						self.add(hash(self.code+units), subkey=hash(name), value=linetag)
 				except AttributeError:
 					continue
 		else:
 		
-			try:
-		
-				
-				workinglist = filter(condition, [i.text for i in workinglist if i.text is not None])
-				self._length = len(workinglist)
-		
-				for units in range(0, len(workinglist)):
-				
-					self.add(hash(self.code+units), subkey=name, value=workinglist[units])
-					
-					if linetag is not None:
-						self.add(hash(self.code+units), subkey=hash(name), value=linetag)
-				
-			except AttributeError:
-				print "Attribute 'text' non-existant for pulled data"
-	
-	
-	def datawand(self):
-		links =  filter(lambda x: "%s%s"%x,self.soup.xpath("//a/@href"))
-		tabletitles = [i for i in self.soup.xpath("//th")]
-		tablerows = [i for i in self.soup.xpath("//td")]
-		
-		
-		#length = max(map(lambda x: len(x), links), 
-				#map(lambda x: len(x), tabletitles),
-				#map(lambda x: len(x), tablerows))
-		
-		
-		[self.add(hash(self.code+units), subkey="Links", value=links[units]) for units in range(0, len(links))]
-		[self.add(hash(self.code+units), subkey="Titles", value=tabletitles[units]) for units in range(0, len(tabletitles))]
-		[self.add(hash(self.code+units), subkey="Rows", value=tablerows[units]) for units in range(0, len(tablerows))]
+			for units in range(0, len(workinglist)):
 			
+				
+			
+				if isinstance(workinglist[units], str):
+					self.add(hash(self.code+units), subkey=name, value=workinglist[units])
+				else:
+					self.add(hash(self.code+units), subkey=name, value=workinglist[units].text)
+
+				
 	def blockscrape2(self, xpath, attributes, columnname, nextpath=None):
 		"""Path to Product, attr to pull, name for export"""
 		#Nextpath is used to do another xpath within each result element.
@@ -710,66 +634,3 @@ class Parser(object):
 				f.close()
 			except IOError as ie:
 				print "IOError: Directory not found at %s"%filename
-				
-				
-				
-class Visualizer(object):
-	def __init__(self, parser):
-		"""Generates HTML code and CSS of result tables"""
-		self.dataset = parser.data
-		self.html = ['<!DOCTYPE html>\n<html>\n<body>\n<table border="10" style="width:50%">\n']
-		self.htmlstring = ""
-		self.titles = parser.titles
-		#This should describe where the html and css files will be stored
-
-		
-	def table(self):
-		"""Returns html string with dataset printed"""
-		self.html.append("<tr>")
-		[self.html.append("<th>%s</th>\n"%i) for i in self.titles]
-		self.html.append("</tr>")
-		for v in self.dataset.itervalues():
-		
-			self.html.append("<tr>\n")
-			
-			for values in v.values():
-				self.html.append('<td>%s</td>\n'%values)
-				
-			self.html.append("</tr>\n")
-			
-		self.html.append('</table>\n</body>\n</html>')
-		self.htmlstring = "".join(self.html)
-		return True
-	
-	def export_html(self, directory):
-		try:
-			directory = "%s.html"%directory
-			
-			f = open(directory, 'w+')
-			f.write(self.htmlstring)
-			f.close()
-			print "File written out to %s"%directory
-			
-		except IOError as ie:
-			print ie.message
-	
-	def style_table(self, html):
-		"""CSS code to style table"""
-		
-
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	

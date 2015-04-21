@@ -1,0 +1,8 @@
+beautifulsoup4
+xlwt
+
+[test]
+coverage
+
+[dev]
+check-manifest

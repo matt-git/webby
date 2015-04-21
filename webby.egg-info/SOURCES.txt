@@ -1,0 +1,12 @@
+DESCRIPTION.rst
+MANIFEST.in
+README.rst
+setup.cfg
+setup.py
+webby/__init__.py
+webby/webby.py
+webby.egg-info/PKG-INFO
+webby.egg-info/SOURCES.txt
+webby.egg-info/dependency_links.txt
+webby.egg-info/requires.txt
+webby.egg-info/top_level.txt
