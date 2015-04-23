@@ -5,7 +5,6 @@ setup.cfg
 setup.py
 webby/__init__.py
 webby/webby.py
-webby/webby_1_1_0.py
 webby.egg-info/PKG-INFO
 webby.egg-info/SOURCES.txt
 webby.egg-info/dependency_links.txt
